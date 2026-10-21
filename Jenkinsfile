@@ -39,24 +39,49 @@ pipeline {
 
 
         
-        stage('Unit Testing & Coverage') {
+        
+stage('Unit Testing & Coverage') {
     steps {
         echo '=== Stage 3: Running Pytest Unit Tests with Coverage ==='
         sh '''
-            mkdir -p reports
+            set +e
+
             docker build -f Dockerfile.ci -t healthcare-appointment-test .
-            docker run --rm \
-                -v "$WORKSPACE:/output" \
-                healthcare-appointment-test \
-                sh -c "python -m pytest --junitxml=/output/test-results.xml --cov=app --cov=database --cov-report=xml:/output/coverage.xml tests/"
+            build_exit=$?
+            if [ "$build_exit" -ne 0 ]; then exit "$build_exit"; fi
+
+            docker rm -f ci-coverage >/dev/null 2>&1
+
+            docker create --name ci-coverage healthcare-appointment-test \
+                sh -c "python -m pytest --junitxml=/tmp/test-results.xml --cov=app --cov=database --cov-report=xml:/tmp/coverage.xml tests/"
+            create_exit=$?
+            if [ "$create_exit" -ne 0 ]; then exit "$create_exit"; fi
+
+            docker start -a ci-coverage
+            test_exit=$?
+
+            docker cp ci-coverage:/tmp/test-results.xml "$WORKSPACE/test-results.xml"
+            junit_exit=$?
+
+            docker cp ci-coverage:/tmp/coverage.xml "$WORKSPACE/coverage.xml"
+            coverage_exit=$?
+
+            docker rm -f ci-coverage >/dev/null 2>&1
+
+            if [ "$test_exit" -ne 0 ]; then exit "$test_exit"; fi
+            if [ "$junit_exit" -ne 0 ] || [ "$coverage_exit" -ne 0 ]; then
+                echo "ERROR: Could not copy test reports into Jenkins workspace."
+                exit 1
+            fi
         '''
     }
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'test-results.xml'
+            junit allowEmptyResults: false, testResults: 'test-results.xml'
         }
     }
 }
+
 
 
         stage('SonarQube SAST Analysis') {
