@@ -9,4 +9,4 @@ __pycache__/
 database.db
 *.sqlite
 *.sqlite3
-tests/
+
