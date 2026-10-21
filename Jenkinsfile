@@ -38,12 +38,17 @@ pipeline {
 }
 
 
+        
         stage('Unit Testing & Coverage') {
             steps {
                 echo '=== Stage 3: Running Pytest Unit Tests with Coverage ==='
                 sh '''
-                    pip install -r requirements.txt pytest pytest-cov
-                    pytest --junitxml=test-results.xml --cov=. --cov-report=xml:coverage.xml tests/
+                    docker build -f Dockerfile.ci -t healthcare-appointment-test .
+                    docker run --rm \
+                        -v "$WORKSPACE:/app" \
+                        -w /app \
+                        healthcare-appointment-test \
+                        sh -c "python -m pip install pytest-cov && python -m pytest --junitxml=test-results.xml --cov=app --cov=database --cov-report=xml:coverage.xml tests/"
                 '''
             }
             post {
@@ -52,6 +57,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('SonarQube SAST Analysis') {
             steps {
