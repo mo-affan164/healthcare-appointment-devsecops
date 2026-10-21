@@ -40,23 +40,23 @@ pipeline {
 
         
         stage('Unit Testing & Coverage') {
-            steps {
-                echo '=== Stage 3: Running Pytest Unit Tests with Coverage ==='
-                sh '''
-                    docker build -f Dockerfile.ci -t healthcare-appointment-test .
-                    docker run --rm \
-                        -v "$WORKSPACE:/app" \
-                        -w /app \
-                        healthcare-appointment-test \
-                        sh -c "python -m pip install pytest-cov && python -m pytest --junitxml=test-results.xml --cov=app --cov=database --cov-report=xml:coverage.xml tests/"
-                '''
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: 'test-results.xml'
-                }
-            }
+    steps {
+        echo '=== Stage 3: Running Pytest Unit Tests with Coverage ==='
+        sh '''
+            mkdir -p reports
+            docker build -f Dockerfile.ci -t healthcare-appointment-test .
+            docker run --rm \
+                -v "$WORKSPACE:/output" \
+                healthcare-appointment-test \
+                sh -c "python -m pytest --junitxml=/output/test-results.xml --cov=app --cov=database --cov-report=xml:/output/coverage.xml tests/"
+        '''
+    }
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: 'test-results.xml'
         }
+    }
+}
 
 
         stage('SonarQube SAST Analysis') {
