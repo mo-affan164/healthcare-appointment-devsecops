@@ -84,20 +84,28 @@ stage('Unit Testing & Coverage') {
 
 
 
-        stage('SonarQube SAST Analysis') {
-            steps {
-                echo '=== Stage 4: Executing Static Application Security Testing (SAST) ==='
-                withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                    sh '''
-                        sonar-scanner \
-                            -Dsonar.projectKey=healthcare-appointment-devsecops \
-                            -Dsonar.sources=app.py,database.py,templates,static \
-                            -Dsonar.tests=tests \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml
-                    '''
-                }
-            }
+        
+stage('SonarQube SAST Analysis') {
+    steps {
+        echo '=== Stage 4: Executing Static Application Security Testing (SAST) ==='
+        withSonarQubeEnv('SonarQubeServer') {
+            sh '''
+                docker run --rm \
+                  --network host \
+                  -e SONAR_HOST_URL="$SONAR_HOST_URL" \
+                  -e SONAR_TOKEN="$SONAR_AUTH_TOKEN" \
+                  -v "$WORKSPACE:/usr/src" \
+                  sonarsource/sonar-scanner-cli \
+                  -Dsonar.projectKey=healthcare-appointment-devsecops \
+                  -Dsonar.sources=app.py,database.py,templates,static \
+                  -Dsonar.tests=tests \
+                  -Dsonar.python.coverage.reportPaths=coverage.xml \
+                  -Dsonar.working.directory=/tmp/sonar-work
+            '''
         }
+    }
+}
+
 
         stage('SonarQube Quality Gate') {
             steps {
