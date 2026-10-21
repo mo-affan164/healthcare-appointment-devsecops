@@ -25,16 +25,18 @@ pipeline {
             }
         }
 
-        stage('Code Linting & Syntax Check') {
-            steps {
-                echo '=== Stage 2: Performing Code Linting & PEP8 Verification ==='
-                sh '''
-                    python3 -m pip install --upgrade pip
-                    pip install flake8
-                    flake8 app.py database.py tests/ --count --select=E9,F63,F7,F82 --show-source --statistics || true
-                '''
-            }
-        }
+
+    stage('Code Linting & Syntax Check') {
+    steps {
+        echo '=== Stage 2: Performing Code Linting & PEP8 Verification ==='
+        sh '''
+            docker build -f Dockerfile.ci -t healthcare-appointment-test .
+            docker run --rm healthcare-appointment-test python -m compileall -q app.py database.py tests/
+            docker run --rm healthcare-appointment-test python -m pytest -q
+        '''
+    }
+}
+
 
         stage('Unit Testing & Coverage') {
             steps {
