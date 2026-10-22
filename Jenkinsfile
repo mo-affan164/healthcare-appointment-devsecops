@@ -121,57 +121,46 @@ pipeline {
             }
         }
 
-        stage('Trivy Security Scanning') {
-            steps {
-                echo '=== Stage 7: Trivy Vulnerability Scanning ==='
-                sh '''
-                    set -eu
-                    mkdir -p reports/security
+        
+stage('Trivy Security Scanning') {
+    steps {
+        echo '=== Stage 7: Trivy Vulnerability Scanning ==='
+        sh '''
+            set -eu
+            mkdir -p reports/security
 
-                    docker run --rm \
-                      --volumes-from jenkins \
-                      -w "$WORKSPACE" \
-                      aquasec/trivy:latest \
-                      fs --scanners vuln,misconfig,secret \
-                      --severity HIGH,CRITICAL \
-                      --format table \
-                      -o reports/security/trivy-fs-report.txt .
+            docker run --rm --volumes-from jenkins \
+              -w "$WORKSPACE" aquasec/trivy:latest \
+              fs --scanners vuln,misconfig,secret \
+              --severity HIGH,CRITICAL \
+              --format table \
+              -o reports/security/trivy-fs-report.txt .
 
-                    docker run --rm \
-                      --volumes-from jenkins \
-                      -w "$WORKSPACE" \
-                      aquasec/trivy:latest \
-                      fs --format json \
-                      -o reports/security/trivy-fs-report.json .
+            docker run --rm --volumes-from jenkins \
+              -w "$WORKSPACE" aquasec/trivy:latest \
+              fs --format json \
+              -o reports/security/trivy-fs-report.json .
 
-                    docker run --rm \
-                      --volumes-from jenkins \
-                      -w "$WORKSPACE" \
-                      aquasec/trivy:latest \
-                      image --severity HIGH,CRITICAL \
-                      --format table \
-                      -o reports/security/trivy-image-report.txt \
-                      "$DOCKER_IMAGE_NAME:$IMAGE_TAG"
-
-                    docker run --rm \
-                      --volumes-from jenkins \
-                      -w "$WORKSPACE" \
-                      if [ -d terraform ]; then
-                      docker run --rm --volumes-from jenkins -w "$WORKSPACE" aquasec/trivy:latest config --severity HIGH,CRITICAL --format table -o reports/security/trivy-iac-report.txt terraform/
-                      else
-                        echo "WARNING: terraform/ directory not found; skipping IaC scan."
-                        echo "Terraform IaC scan was not performed."
-                        echo "Terraform directory missing" > reports/security/trivy-iac-report.txt
-                      fi
-                '''
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'reports/security/**',
-                                     allowEmptyArchive: true
-                }
-            }
+            if [ -d terraform ]; then
+                docker run --rm --volumes-from jenkins \
+                  -w "$WORKSPACE" aquasec/trivy:latest \
+                  config --severity HIGH,CRITICAL \
+                  --format table \
+                  -o reports/security/trivy-iac-report.txt terraform/
+            else
+                echo "WARNING: terraform/ directory missing; IaC scan not performed."
+                echo "Terraform directory missing; IaC scan not performed." \
+                  > reports/security/trivy-iac-report.txt
+            fi
+        '''
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'reports/security/**', allowEmptyArchive: true
         }
+    }
+}
+
 
         stage('Push Image to Registry') {
             steps {
