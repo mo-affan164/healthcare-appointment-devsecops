@@ -156,10 +156,13 @@ pipeline {
                     docker run --rm \
                       --volumes-from jenkins \
                       -w "$WORKSPACE" \
-                      aquasec/trivy:latest \
-                      config --severity HIGH,CRITICAL \
-                      --format table \
-                      -o reports/security/trivy-iac-report.txt terraform/
+                      if [ -d terraform ]; then
+                      docker run --rm --volumes-from jenkins -w "$WORKSPACE" aquasec/trivy:latest config --severity HIGH,CRITICAL --format table -o reports/security/trivy-iac-report.txt terraform/
+                      else
+                        echo "WARNING: terraform/ directory not found; skipping IaC scan."
+                        echo "Terraform IaC scan was not performed."
+                        echo "Terraform directory missing" > reports/security/trivy-iac-report.txt
+                      fi
                 '''
             }
             post {
