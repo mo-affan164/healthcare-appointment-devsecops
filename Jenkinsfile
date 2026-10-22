@@ -103,20 +103,17 @@ pipeline {
         }
 
         stage('SonarQube Quality Gate') {
-            steps {
-                echo '=== Stage 5: Checking SonarQube Quality Gate ==='
-                timeout(time: 5, unit: 'MINUTES') {
-                    script {
-                        def qg = waitForQualityGate()
-                        echo "SonarQube Quality Gate status: ${qg.status}"
-
-                        if (qg.status != 'OK') {
-                            error "Quality Gate failed: ${qg.status}"
-                        }
-                    }
+    steps {
+        timeout(time: 5, unit: 'MINUTES') {
+            script {
+                def qg = waitForQualityGate()
+                if (qg.status != 'OK') {
+                    error "Quality Gate failed: ${qg.status}"
                 }
             }
         }
+    }
+}
 
         stage('Docker Image Build') {
             steps {
